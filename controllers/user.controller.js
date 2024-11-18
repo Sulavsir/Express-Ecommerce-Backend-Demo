@@ -1,5 +1,6 @@
 const userModel = require("../model/user");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const signUp = async (req, res) => {
   try {
@@ -30,8 +31,7 @@ const signUp = async (req, res) => {
 const signIn = async (req, res) => {
   try {
     const user = await userModel.findOne({ email: req.body.email });
-    if (!user)
-      return res.status(400).json({ msg: "User Doesn't exist" });
+    if (!user) return res.status(400).json({ msg: "User Doesn't exist" });
 
     const passMatch = bcrypt.compareSync(req.body.password, user.password);
     if (!passMatch)
@@ -39,11 +39,22 @@ const signIn = async (req, res) => {
         msg: "Password donot Match",
       });
 
+    const token = jwt.sign(
+      {
+        _id: user._id,
+        name: user.name,
+        role: user.role,
+      },
+      process.env.JWT_SECRET_KEY,
+      { expiresIn: "10d" }
+    );
+
     user.lastLogin = Date.now();
     await user.save();
 
     return res.status(200).json({
       msg: "User Logged In Successfully",
+      token,
     });
   } catch (error) {
     return res.status(400).json({
